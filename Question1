@@ -1,0 +1,82 @@
+#Simulate two correlated brownian motion
+#Simulate stock price and volatility
+SimStockAndVol <- function(deltaT, seed1, seed2, rho, sigma)
+{
+  set.seed(seed1)
+  #standard normal var as time horizon is 1 hence variance of brownian motion = 1
+  z1 <- rnorm(deltaT)
+  set.seed(seed2)
+  z2 <- rnorm(deltaT)
+  w2 <- rho* z1 + sqrt(1- rho*rho) * z2
+  #w2 and z1 are vectors of correlated normal variables
+  # Using z1 to simulate stock prices 
+  #and z2 to simulate volatility
+  Log<-c()
+  Log[1]<- 100
+  mu = 0
+  print(z1)
+  for( i in 2:length(z1))
+  {
+   
+    Log[i]<-Log[i-1]*exp((mu-0.5*sigma^2)/deltaT+sigma*z1[i-1])
+    
+  }
+  return(Log)
+}
+BSprice<-function(pc, S, k, vol, d, r, t)
+{
+  #pc  put/call indicator call=1, put=-1
+  #S   Stock price at 0
+  #K   strike
+  #vol volatility
+  #d   dividend yield
+  #r   riskless rate
+  #t   time to maturity
+  
+  
+  d1 = (log(S / k) + t * (r - d + (vol ^ 2) / 2)) / (vol * sqrt(t))
+  d2 = d1 - vol * sqrt(t)
+  
+  BSprice = pc * exp(-d * t) * S * 
+    pnorm(pc * d1) - pc * k * exp(-r * t) * pnorm(pc * d2)
+  return(BSprice)
+}
+
+BSDelta<-function(pc, S, k, vol, d, r, t)
+{
+  d1 = (log(S / k) + t * (r - d + (vol ^ 2) / 2)) / (vol * sqrt(t))
+  
+  if (pc == 1) {BSdelta = exp(-d * t) * pnorm(d1)} else 
+  {BSdelta = exp(-d * t) * (pnorm(d1) - 1)}
+  return(BSdelta)
+  
+}
+
+deltaT = 250
+BSPrice <- c()
+BSdelta <- c()
+PnL <- c()
+StockPrice <- SimStockAndVol(deltaT,1,2,0.50, 0.75)
+print(StockPrice)
+for(i in 1:length(StockPrice))
+{
+  BSPrice[i] <- BSprice(1,StockPrice[i],80, 0.75,0,0,1-(i/deltaT))
+  
+  BSdelta[i] <- BSDelta(1, StockPrice[i], 80, 0.75, 0,0, 1-(i/deltaT))
+  
+  if(i == 1)
+  {
+
+    PnL[i] <-  BSdelta[1]*StockPrice[1] -BSPrice[1] 
+  }
+  if(i > 1)
+  {
+
+    PnL[i] <- PnL[i-1] - BSdelta[i-1]*StockPrice[i] + BSdelta[i]*StockPrice[i]
+  }
+}
+
+plot (PnL)
+print(BSdelta)
+print(BSPrice)
+print(PnL)
